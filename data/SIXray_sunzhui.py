@@ -73,21 +73,19 @@ class SIXrayAnnotationTransform(object):
 
 class SIXrayDetection(data.Dataset):
 
-    def __init__(self, root,opts,
+    def __init__(self, img_path,anno_path,
                  image_sets,
                  transform=None, target_transform=SIXrayAnnotationTransform(),
                  dataset_name='Xray0723_bat_core_coreless'):
-        self.root = root
+        self.img_path = img_path
+        self.anno_path = anno_path
         self.image_set = image_sets
         self.transform = transform
         self.target_transform = target_transform
         self.name = dataset_name
-        self._annopath = osp.join('%s' % self.root, 'Annotation', 'core_battery%s.txt')
-        self._imgpath = osp.join('%s' % self.root, 'Image', 'core_battery%s.jpg')
-        self._annopath2 = osp.join('%s' % self.root, 'Annotation', 'coreless_battery%s.txt')
-        self._imgpath2 = osp.join('%s' % self.root, 'Image', 'coreless_battery%s.jpg')
-        self.opts=opts
-        self.ids = list_ids(root, "jpg")
+        self._annopath = osp.join('%s' % self.anno_path,'%s.txt')
+        self._imgpath = osp.join('%s' % self.img_path,'%s.jpg')
+        self.ids = list_ids(img_path, "jpg")
 
 
     def __getitem__(self, index):
@@ -96,15 +94,11 @@ class SIXrayDetection(data.Dataset):
 
     def __len__(self):
         return len(self.ids)
-    # ops意思是选择core:1  还是 coreless:2
+    
     def pull_item(self, index):
         img_id = self.ids[index]
-        if self.opts==2:
-            target = self._annopath2 % img_id  # 注释目录
-            img = cv2.imread(self._imgpath2 % img_id)
-        else:
-            target = self._annopath % img_id  # 注释目录
-            img = cv2.imread(self._imgpath % img_id)
+        target = self._annopath % img_id  # 注释目录
+        img = cv2.imread(self._imgpath % img_id)
         if img is None:
             print('\n错误:未找到图像文件\n')
             sys.exit(1)
@@ -126,10 +120,7 @@ class SIXrayDetection(data.Dataset):
     # 根据ID 获取图片
     def pull_image(self, index):
         img_id = self.ids[index]
-        if self.opts==1:
-            img=cv2.imread(self._imgpath % img_id, cv2.IMREAD_COLOR)
-        else:
-            img=cv2.imread(self._imgpath2 % img_id, cv2.IMREAD_COLOR)
+        img=cv2.imread(self._imgpath % img_id, cv2.IMREAD_COLOR)
         return img
 
     # 根据ID 获取标注
@@ -137,26 +128,15 @@ class SIXrayDetection(data.Dataset):
         img_id = self.ids[index]
         annos = []
         # 读取标注文件
-        if self.opts==1:
-            with open(self._annopath % img_id, "r", encoding='utf-8') as file:
-                lines = file.readlines()
-                for line in lines:
-                    temp = line.split()
-                    fileName = temp[1]
-                    if fileName != '带电芯充电宝' and fileName != '不带电芯充电宝':
-                        continue
-                    img_tuple = (fileName, (int(temp[2]), int(temp[3])), (int(temp[4]), int(temp[5])))
-                    annos.append(img_tuple)
-        else:
-            with open(self._annopath2 % img_id, "r", encoding='utf-8') as file:
-                lines = file.readlines()
-                for line in lines:
-                    temp = line.split()
-                    fileName = temp[1]
-                    if fileName != '带电芯充电宝' and fileName != '不带电芯充电宝':
-                        continue
-                    img_tuple = (fileName, (int(temp[2]), int(temp[3])), (int(temp[4]), int(temp[5])))
-                    annos.append(img_tuple)
+        with open(self._annopath % img_id, "r", encoding='utf-8') as file:
+            lines = file.readlines()
+            for line in lines:
+                temp = line.split()
+                fileName = temp[1]
+                if fileName != '带电芯充电宝' and fileName != '不带电芯充电宝':
+                    continue
+                img_tuple = (fileName, (int(temp[2]), int(temp[3])), (int(temp[4]), int(temp[5])))
+                annos.append(img_tuple)
         return annos
 
     def pull_anno(self, index):
@@ -172,10 +152,7 @@ class SIXrayDetection(data.Dataset):
                 eg: ('001718', [('dog', (96, 13, 438, 332))])
         '''
         img_id = self.ids[index]
-        if self.opts==1:
-            anno = self._annopath % img_id
-        else:
-            anno = self._annopath2 % img_id
+        anno = self._annopath % img_id
         gt = self.target_transform(anno, 1, 1)
 
         res = []
@@ -215,5 +192,5 @@ def list_ids(root, allTypes):
             match = re_img_id.match(name)
             if match:
                 if match.groups()[2] in types:
-                    res.append(match.groups()[1])
+                    res.append(match.groups()[0]+match.groups()[1])
     return res

@@ -6,5 +6,5 @@
 
 #we use the train.py tu train our master
 
-#小组名单
+# 小组名单
 组长：王洪强   组员：陆宇轩，姜丰，孙追
